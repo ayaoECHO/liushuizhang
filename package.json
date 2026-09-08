@@ -1,0 +1,16 @@
+{
+  "name": "workbench",
+  "version": "2.0.0",
+  "description": "流水账 — 时间管理 + AI 记录助手",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^4.20.0"
+  }
+}
