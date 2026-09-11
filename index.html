@@ -1571,11 +1571,19 @@ function snapTimeline(dateStr) {
 }
 
 function deleteRecord(dateStr, id) {
-  const entries = timelogs[dateStr];
-  if (!entries) return null;
-  const idx = entries.findIndex(e => e.id === id);
+  let entries = timelogs[dateStr];
+  let idx = entries ? entries.findIndex(e => e.id === id) : -1;
+  // 跨日期查找：当前日期没找到，搜所有日期
+  if (idx < 0) {
+    for (const d of Object.keys(timelogs)) {
+      if (d === dateStr) continue;
+      const i = (timelogs[d] || []).findIndex(e => e.id === id);
+      if (i >= 0) { dateStr = d; entries = timelogs[d]; idx = i; break; }
+    }
+  }
   if (idx < 0) return null;
   const [deleted] = entries.splice(idx, 1);
+  deleted.date = dateStr;
   if (!pendingDeleted[dateStr]) pendingDeleted[dateStr] = [];
   pendingDeleted[dateStr].push(id);
   saveTimelogs();
@@ -1649,7 +1657,11 @@ async function executeAction(dateStr, result) {
             }
             if (res) {
               touchedDates.add(td);
-              if (res.oldDate) touchedDates.add(res.oldDate);
+              if (res.oldDate) {
+                touchedDates.add(res.oldDate);
+                if (!pendingDeleted[res.oldDate]) pendingDeleted[res.oldDate] = [];
+                pendingDeleted[res.oldDate].push(item.id);
+              }
             } else {
               failedOps.push(item);
             }
@@ -1661,7 +1673,7 @@ async function executeAction(dateStr, result) {
             if (!deleted && !createdDates.has(td)) {
               deleted = await retryDeleteWithReload(td, item.id);
             }
-            if (deleted) touchedDates.add(td);
+            if (deleted) touchedDates.add(deleted.date || td);
             else failedOps.push(item);
           }
         } else if (item.action === 'createTask') {
@@ -1723,7 +1735,7 @@ async function executeAction(dateStr, result) {
       let deleted = deleteRecord(td, result.id);
       if (!deleted) deleted = await retryDeleteWithReload(td, result.id);
       if (!deleted) return { reply: '未找到记录 ' + result.id + '。已尝试刷新数据重试一次仍失败，请刷新页面后再试。', failed: 1 };
-      saveDayToAPI(td).catch(() => {});
+      saveDayToAPI(deleted.date || td).catch(() => {});
       renderMidCol(dateStr);
       return { reply: result.reply };
     }
